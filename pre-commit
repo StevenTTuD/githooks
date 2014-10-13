@@ -101,9 +101,7 @@ full_diff.scan(%r{^\+\+\+ b/(.+)\n@@.*\n([\s\S]*?)(?:^diff|\z)}).each do |file, 
   unless PROJECT_TYPE == 'node'
     FORBIDDEN_STRINGS_EXCEPT_IN_NODE.each do |re|
       if changed_code_for_file.match(re)
-        puts %{Error: git pre-commit hook forbids committing "#{$1 || $&}" to #{file} outside of Node.js projects. If this *is* a Node project, run}
-        puts %{\nnpm init\n\nat the top level of the project to add a package.json file. See\nhttps://devcenter.heroku.com/articles/getting-started-with-nodejs#declare-dependencies-with-npm\nfor more information.}
-        puts %{--------------}
+        puts %{Error: git pre-commit hook forbids committing "#{$1 || $&}" to #{file}\n-------------}
         error_found = true
       end
     end
@@ -127,7 +125,7 @@ full_diff.scan(%r{^\+\+\+ b/(.+)\n@@.*\n([\s\S]*?)(?:^diff|\z)}).each do |file, 
   
   # Scan for secret file indicators
   SECRET_INDICATORS.each do |re|
-    if changed_code_for_file.match(re)
+    if file.match(re)
       puts %{Error: git pre-commit hook detected a probable secret file commit: "#{$1 || $&}" to #{file}\n--------------}
       error_found = true
     end
@@ -148,8 +146,7 @@ if CHECK_RUBY_SYNTAX
         output = `ruby -c #{fullfile}`
         status = $?.success?
         unless status
-          puts %{Error: git pre-commit hook found a syntax error in #{fullfile}.\nIf you find that this check is flagging valid code too often, you may be using an old system git to perform the syntax check.}
-          puts deactivation_message("deactivate the syntax check", "checkrubysyntax", false)
+          puts %{Error: git pre-commit hook found a syntax error in #{fullfile}.\n---------------}
           error_found = true
         end
       end
