@@ -41,12 +41,6 @@ FORBIDDEN_STRINGS = [
   /logger\.debug/  # I almost never want to commit a (Ruby) call to logger.debug.  error, message, etc., but not debug.
 ]
 
-FORBIDDEN_STRINGS_EXCEPT_IN_FILES = [
-  [ /====/, ['.md', '.mmd'] ]
-]
-
-SHELL_SCRIPT_EXTENSIONS = [ '.sh', '.bash', '' ]
-
 FORBIDDEN_STRINGS_EXCEPT_IN_NODE = [
   /console\.\w*/,  # JavaScript debug code that would break IE.
 ]
@@ -64,28 +58,18 @@ PRIVATE_KEY_INDICATORS = [
   /ssh-rsa/
 ]
 
-# For particular projects - configurable on a per-project git config basis
+#Warning signs that someone is committing files with secrets.
+SECRET_INDICATORS = [
+  /database\.yml/,
+  /application\.yml/
+]
 
-# Prevent inadvertent .ruby-version and .rbenv-version commits.  I rarely edit these files, so any attempt to commit is probably an accident.
-ALLOW_RUBY_VERSION_CHANGES_UNDEFINED = `git config hooks.allowrubyversionchange`.strip.empty?
-ALLOW_RUBY_VERSION_CHANGES = !ALLOW_RUBY_VERSION_CHANGES_UNDEFINED && ( `git config hooks.allowrubyversionchange`.strip == 'true')
-
-# Check that we don't use spaces after opening braces or before closing braces.  This is required in some of my projects.
-REQUIRE_STRICT_PAREN_SPACING_UNDEFINED = `git config hooks.requirestrictparenspacing`.strip.empty?
-REQUIRE_STRICT_PAREN_SPACING = REQUIRE_STRICT_PAREN_SPACING_UNDEFINED || (`git config hooks.requirestrictparenspacing`.strip == 'true')
 
 # Check syntax of Ruby files.  Deactivate if your git app of choice uses a version of Ruby that doesn't support your project.
 # (i.e., on old Mac OS, apps will use Ruby 1.8, which is unaware of the Ruby 1.9 JS hash syntax.)
 CHECK_RUBY_SYNTAX_UNDEFINED = `git config hooks.checkrubysyntax`.strip.empty?
 CHECK_RUBY_SYNTAX = CHECK_RUBY_SYNTAX_UNDEFINED || (`git config hooks.checkrubysyntax`.strip == 'true')
 
-FLASH = /flash\s*\[\s*:alert\s*\]/
-ALERT = /alert/
-
-OPEN_SMOOTH_SPACE  = /\([ \t]+/
-SPACE_CLOSE_SMOOTH = /[ \t]+\)/
-OPEN_SQUARE_SPACE  = /\[[ \t]+/
-SPACE_CLOSE_SQUARE = /[ \t]+\]/
 
 PROJECT_TYPE = project_type
 
@@ -125,16 +109,6 @@ full_diff.scan(%r{^\+\+\+ b/(.+)\n@@.*\n([\s\S]*?)(?:^diff|\z)}).each do |file, 
     end
   end
 
-  FORBIDDEN_STRINGS_EXCEPT_IN_FILES.each do |re_exts|
-    unless re_exts[1].include? File.extname(file)
-      re = re_exts[0]
-      if changed_code_for_file.match(re)
-        puts %{Error: git pre-commit hook forbids committing "#{$1 || $&}" to #{file}\n--------------}
-        error_found = true
-      end
-    end
-  end
-
   # Scan for probable HARD_CODED references to user's home directory
   USER_HOME.each do |re|
     if changed_code_for_file.match(re)
@@ -150,43 +124,17 @@ full_diff.scan(%r{^\+\+\+ b/(.+)\n@@.*\n([\s\S]*?)(?:^diff|\z)}).each do |file, 
       error_found = true
     end
   end
-
-  # Scan for calls to "alert" that aren't flashes, in files that *aren't* in assets/**/vendor
-  unless /assets\// =~ dir && /\/vendor/ =~ dir
-    changed_lines_for_file.each do |changed_line|
-      if changed_line.match(ALERT) && !changed_line.match(FLASH)
-        puts %{Warning: git pre-commit hook is suspicious of committing lines with "alert" to #{file}\n--------------}
-        error_found = true
-        break
-      end
-    end
-  end
-
-  # Scan for bad paren or square bracket spacing, in files that *aren't* in assets/**/vendor
-  if REQUIRE_STRICT_PAREN_SPACING && !SHELL_SCRIPT_EXTENSIONS.include?(File.extname(file)) && !(/assets\// =~ dir && /\/vendor/ =~ dir)
-    if changed_code_for_file.match(OPEN_SMOOTH_SPACE)
-      puts %{Warning: git pre-commit hook is suspicious of committing lines with "( " to #{file}\nThis may be OK, or not, depending on your project requirements.}
-      puts deactivation_message("allow", "requirestrictparenspacing", false)
-      error_found = true
-    end
-    if changed_code_for_file.match(SPACE_CLOSE_SMOOTH)
-      puts %{Warning: git pre-commit hook is suspicious of committing lines with " )" to #{file}\nThis may be OK, or not, depending on your project requirements.}
-      puts deactivation_message("allow", "requirestrictparenspacing", false)
-      error_found = true
-    end
-    if changed_code_for_file.match(OPEN_SQUARE_SPACE)
-      puts %{Warning: git pre-commit hook is suspicious of committing lines with "[ " to #{file}\nThis may be OK, or not, depending on your project requirements.}
-      puts deactivation_message("allow", "requirestrictparenspacing", false)
-      error_found = true
-    end
-    if changed_code_for_file.match(SPACE_CLOSE_SQUARE)
-      puts %{Warning: git pre-commit hook is suspicious of committing lines with " ]" to #{file}\nThis may be OK, or not, depending on your project requirements.}
-      puts deactivation_message("allow", "requirestrictparenspacing", false)
+  
+  # Scan for secret file indicators
+  SECRET_INDICATORS.each do |re|
+    if changed_code_for_file.match(re)
+      puts %{Error: git pre-commit hook detected a probable secret file commit: "#{$1 || $&}" to #{file}\n--------------}
       error_found = true
     end
   end
-
+  
 end
+
 
 name_only_array = `git diff --cached --name-only`.split(/\n/)
 
@@ -209,17 +157,6 @@ if CHECK_RUBY_SYNTAX
   end
 end
 
-# Prevent changes to .ruby-version (and .rbenv-version)
-unless ALLOW_RUBY_VERSION_CHANGES
-  name_only_array.each do |fil|
-    base = File.basename(fil)
-    if base == '.ruby-version' || base == '.rbenv-version'
-      puts %{Warning: git pre-commit hook found attempt to edit #{fil}.\nThis may be OK, or not, depending on your project requirements.}
-      puts deactivation_message("allow", "allowrubyversionchange", true)
-      error_found = true
-    end
-  end
-end
 
 # Finally, report errors
 if error_found
