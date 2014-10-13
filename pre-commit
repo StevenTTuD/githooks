@@ -64,7 +64,6 @@ SECRET_INDICATORS = [
   /application\.yml/
 ]
 
-
 # Check syntax of Ruby files.  Deactivate if your git app of choice uses a version of Ruby that doesn't support your project.
 # (i.e., on old Mac OS, apps will use Ruby 1.8, which is unaware of the Ruby 1.9 JS hash syntax.)
 CHECK_RUBY_SYNTAX_UNDEFINED = `git config hooks.checkrubysyntax`.strip.empty?
@@ -133,6 +132,16 @@ full_diff.scan(%r{^\+\+\+ b/(.+)\n@@.*\n([\s\S]*?)(?:^diff|\z)}).each do |file, 
   
 end
 
+#If trying to add an empty file that is prohibited
+full_diff.scan(%r{^diff --git a/(.+) b/.*\nnew file mode}).each do |file|
+  # Scan for secret file indicators. 
+  SECRET_INDICATORS.each do |re|
+    if file[0].match(re)
+      puts %{Error: git pre-commit hook detected a probable secret file commit: "#{$1 || $&}" to #{file}\n--------------}
+      error_found = true
+    end
+  end
+end
 
 name_only_array = `git diff --cached --name-only`.split(/\n/)
 
