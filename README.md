@@ -1,11 +1,10 @@
 githooks
 ========
 
-My personal githooks, which help me avoid mistakes and adhere to  coding guidelines.
+These are some handy githooks, which will help avoid silly mistakes and adhere to coding guidelines.
 
-I started writing these for use in full-stack Ruby on Rails coding, so most of the checks are for languages in a typical RoR stack.
+Most of the checks are for languages in a typical RoR stack.
 
-If you would like to add code to detect another common problem, please create an issue, or better yet, a pull request.  See [Advice for Committers](#advice-for-committers) below.
 
 pre-commit
 ----------
@@ -51,6 +50,6 @@ Updating the Hooks
 ==================
 If you update/change the hooks or the pull latest changes, you'll need to run the setup script again.
 
-cd (into the githooks repository directory)
-./setup.sh path_to_project_repo_to_add_hooks
+	cd (into the githooks repository directory)
+	./setup.sh path_to_project_repo_to_add_hooks
 
